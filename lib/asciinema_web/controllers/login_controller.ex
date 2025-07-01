@@ -10,8 +10,19 @@ defmodule AsciinemaWeb.LoginController do
 
   def create(%{assigns: %{bot: true}} = conn, params) do
     Logger.warning("bot login attempt: #{inspect(params)}")
-
     redirect(conn, to: ~p"/login/sent")
+  end
+
+  def create(conn, %{"login" => %{"email" => identifier, "password" => password}} = params) when is_binary(password) and password != "" do
+    case Asciinema.Accounts.authenticate_user(String.trim(identifier), password) do
+      {:ok, user} ->
+        conn
+        |> AsciinemaWeb.Authentication.log_in(user)
+        |> put_flash(:info, "Welcome back!")
+        |> redirect(to: AsciinemaWeb.Router.Helpers.user_path(conn, :show, user.id))
+      {:error, :invalid_credentials} ->
+        render(conn, :new, error: "Invalid username/email or password.")
+    end
   end
 
   def create(conn, %{"login" => %{"email" => identifier}}) do

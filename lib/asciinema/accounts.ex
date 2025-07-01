@@ -59,29 +59,37 @@ defmodule Asciinema.Accounts do
     )
   end
 
+  def create_user(attrs) do
+    %Asciinema.Accounts.User{}
+    |> Asciinema.Accounts.User.changeset(attrs)
+    |> Repo.insert()
+  end
+
   def create_user(attrs, :user) do
     import Ecto.Changeset
-
     build_user()
-    |> cast(attrs, [:email, :username])
-    |> validate_required([:email])
+    |> cast(attrs, [:email, :username, :password, :password_confirmation])
+    |> validate_required([:email, :password])
     |> update_change(:email, &String.downcase/1)
     |> validate_format(:email, @valid_email_re)
     |> validate_username()
+    |> validate_password()
     |> add_contraints()
+    |> maybe_hash_password()
     |> Repo.insert()
   end
 
   def create_user(attrs, :admin) do
     import Ecto.Changeset
-
     build_user()
-    |> cast(attrs, [:email, :username])
+    |> cast(attrs, [:email, :username, :password, :password_confirmation])
     |> validate_required([:email])
     |> update_change(:email, &String.downcase/1)
     |> validate_format(:email, @valid_email_re)
     |> validate_username()
+    |> validate_password()
     |> add_contraints()
+    |> maybe_hash_password()
     |> Repo.insert()
   end
 
@@ -107,7 +115,6 @@ defmodule Asciinema.Accounts do
 
   def change_user(user, params, :user) do
     import Ecto.Changeset
-
     user
     |> cast(params, [
       :email,
@@ -118,34 +125,41 @@ defmodule Asciinema.Accounts do
       :term_font_family,
       :default_recording_visibility,
       :default_stream_visibility,
-      :stream_recording_enabled
+      :stream_recording_enabled,
+      :password,
+      :password_confirmation
     ])
     |> validate_required([:email, :username])
     |> update_change(:email, &String.downcase/1)
     |> validate_format(:email, @valid_email_re)
     |> validate_username()
+    |> validate_password()
     |> validate_inclusion(:term_theme_name, Themes.terminal_themes())
     |> validate_inclusion(:term_font_family, Fonts.terminal_font_families())
     |> add_contraints()
+    |> maybe_hash_password()
   end
 
   def change_user(user, params, :admin) do
     import Ecto.Changeset
-
     user
     |> cast(params, [
       :email,
       :name,
       :username,
       :streaming_enabled,
-      :stream_limit
+      :stream_limit,
+      :password,
+      :password_confirmation
     ])
     |> validate_required([:email, :username])
     |> update_change(:email, &String.downcase/1)
     |> validate_format(:email, @valid_email_re)
     |> validate_username()
+    |> validate_password()
     |> validate_number(:stream_limit, greater_than_or_equal_to: 0)
     |> add_contraints()
+    |> maybe_hash_password()
   end
 
   defp validate_username(changeset) do
@@ -154,6 +168,28 @@ defmodule Asciinema.Accounts do
     changeset
     |> validate_format(:username, @valid_username_re)
     |> validate_length(:username, min: 2, max: 16)
+  end
+
+  defp validate_password(changeset) do
+    import Ecto.Changeset
+    password = get_change(changeset, :password)
+    cond do
+      is_nil(password) or password == "" -> changeset
+      true ->
+        changeset
+        |> validate_length(:password, min: 8, max: 72)
+        |> validate_confirmation(:password, message: "does not match confirmation")
+    end
+  end
+
+  defp maybe_hash_password(changeset) do
+    import Ecto.Changeset
+    password = get_change(changeset, :password)
+    if password do
+      put_change(changeset, :encrypted_password, Argon2.hash_pwd_salt(password))
+    else
+      changeset
+    end
   end
 
   defp add_contraints(changeset) do
@@ -187,17 +223,6 @@ defmodule Asciinema.Accounts do
 
       {{_, %User{} = user}, _} ->
         {:ok, {:login, login_token(user), user.email}}
-
-      {{:email, nil}, true} ->
-        changeset = change_user(%User{}, %{email: identifier})
-
-        if Enum.any?(changeset.errors, &(elem(&1, 0) == :email)) do
-          {:error, :email_invalid}
-        else
-          email = changeset.changes.email
-
-          {:ok, {:sign_up, sign_up_token(email), email}}
-        end
 
       {{_, nil}, _} ->
         {:error, :user_not_found}
@@ -416,4 +441,26 @@ defmodule Asciinema.Accounts do
   def default_term_theme_name(user), do: user.term_theme_name
 
   def default_font_family(user), do: user.term_font_family
+
+  @doc """
+  Authenticate a user by username or email and password.
+  Returns {:ok, user} if successful, {:error, :invalid_credentials} otherwise.
+  """
+  def authenticate_user(identifier, password) when is_binary(identifier) and is_binary(password) do
+    user =
+      if String.contains?(identifier, "@") do
+        Repo.get_by(User, email: String.downcase(identifier))
+      else
+        find_user_by_username(identifier)
+      end
+
+    cond do
+      user && user.encrypted_password && Argon2.verify_pass(password, user.encrypted_password) ->
+        {:ok, user}
+      true ->
+        # Run dummy check to prevent timing attacks
+        Argon2.no_user_verify()
+        {:error, :invalid_credentials}
+    end
+  end
 end
