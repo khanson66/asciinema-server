@@ -145,41 +145,18 @@ defmodule AsciinemaWeb.UserController do
     )
   end
 
-  def delete(conn, %{"token" => token, "confirmed" => _}) do
-    case Asciinema.delete_user(token) do
-      :ok ->
-        conn
-        |> log_out()
-        |> put_flash(:info, "Account deleted")
-        |> redirect(to: ~p"/")
-
-      {:error, :invalid_token} ->
-        conn
-        |> put_flash(:error, "Invalid account deletion token")
-        |> redirect(to: ~p"/")
-    end
-  end
-
-  def delete(conn, %{"t" => token}) do
-    render(conn, :delete, token: token)
-  end
-
-  def delete(conn, _params) do
+  def delete(conn, %{"confirm_username" => confirm_username}) do
     user = conn.assigns.current_user
-    address = user.email
-
-    case Asciinema.send_account_deletion_email(user, AsciinemaWeb.UrlProvider) do
-      :ok ->
-        conn
-        |> put_flash(:info, "Account removal initiated - check your inbox (#{address})")
-        |> redirect(to: profile_path(conn))
-
-      {:error, reason} ->
-        Logger.warning("email delivery error: #{inspect(reason)}")
-
-        conn
-        |> put_flash(:error, "Error sending email, please try again later")
-        |> redirect(to: ~p"/user/edit")
+    if user && confirm_username == user.username do
+      :ok = Asciinema.delete_user!(user)
+      conn
+      |> log_out()
+      |> put_flash(:info, "Account deleted")
+      |> redirect(to: ~p"/")
+    else
+      conn
+      |> put_flash(:error, "Username did not match. Account not deleted.")
+      |> redirect(to: ~p"/user/edit")
     end
   end
 end
