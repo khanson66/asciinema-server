@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - '80:4000'
+      - '4002:4002'
     environment:
       - SECRET_KEY_BASE=gtWf2hnMRJoqZZmHSvyX2W4tMfRNCVUo15aHopHghJiIU0w6rcdZkt5JQiSatLjh
       - URL_HOST=localhost

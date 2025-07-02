@@ -17,6 +17,18 @@
   </p>
 
   <p>
+    <.label for={f[:password]}>Password</.label>
+    <.input field={f[:password]} type="password" required />
+    <.error field={f[:password]} />
+  </p>
+
+  <p>
+    <.label for={f[:password_confirmation]}>Confirm Password</.label>
+    <.input field={f[:password_confirmation]} type="password" required />
+    <.error field={f[:password_confirmation]} />
+  </p>
+
+  <p>
     <button type="submit">Add</button>
   </p>
 </.form>

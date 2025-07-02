@@ -13,45 +13,57 @@ defmodule AsciinemaWeb.UserController do
   end
 
   def new(conn, _params) do
-    changeset = Asciinema.Accounts.build_user()
-    render(conn, "new.html", changeset: changeset)
+    if Asciinema.Accounts.sign_up_enabled?() do
+      changeset = Asciinema.Accounts.build_user()
+      render(conn, "new.html", changeset: changeset)
+    else
+      conn
+      |> put_flash(:error, "Public sign up is disabled.")
+      |> redirect(to: ~p"/login/new")
+    end
   end
 
   def create(conn, %{"user" => user_params}) do
-    token = get_session(conn, :sign_up_token)
-    conn = delete_session(conn, :sign_up_token)
+    if Asciinema.Accounts.sign_up_enabled?() do
+      token = get_session(conn, :sign_up_token)
+      conn = delete_session(conn, :sign_up_token)
 
-    cond do
-      token ->
-        case Asciinema.create_user_from_sign_up_token(token) do
-          {:ok, user} ->
-            conn
-            |> log_in(user)
-            |> put_flash(:info, "Welcome to asciinema!")
-            |> redirect(to: ~p"/username/new")
-          {:error, :token_invalid} ->
-            conn
-            |> put_flash(:error, "Invalid sign-up link.")
-            |> redirect(to: ~p"/login/new")
-          {:error, :token_expired} ->
-            conn
-            |> put_flash(:error, "This sign-up link has expired, sorry.")
-            |> redirect(to: ~p"/login/new")
-          {:error, :email_taken} ->
-            conn
-            |> put_flash(:error, "You already signed up with this email.")
-            |> redirect(to: ~p"/login/new")
-        end
-      true ->
-        case Asciinema.Accounts.create_user(user_params) do
-          {:ok, user} ->
-            conn
-            |> log_in(user)
-            |> put_flash(:info, "Welcome to asciinema!")
-            |> redirect(to: (if user.username, do: AsciinemaWeb.Router.Helpers.user_path(conn, :show, user.id), else: ~p"/username/new"))
-          {:error, %Ecto.Changeset{} = changeset} ->
-            render(conn, "new.html", changeset: changeset)
-        end
+      cond do
+        token ->
+          case Asciinema.create_user_from_sign_up_token(token) do
+            {:ok, user} ->
+              conn
+              |> log_in(user)
+              |> put_flash(:info, "Welcome to asciinema!")
+              |> redirect(to: ~p"/username/new")
+            {:error, :token_invalid} ->
+              conn
+              |> put_flash(:error, "Invalid sign-up link.")
+              |> redirect(to: ~p"/login/new")
+            {:error, :token_expired} ->
+              conn
+              |> put_flash(:error, "This sign-up link has expired, sorry.")
+              |> redirect(to: ~p"/login/new")
+            {:error, :email_taken} ->
+              conn
+              |> put_flash(:error, "You already signed up with this email.")
+              |> redirect(to: ~p"/login/new")
+          end
+        true ->
+          case Asciinema.Accounts.create_user(user_params) do
+            {:ok, user} ->
+              conn
+              |> log_in(user)
+              |> put_flash(:info, "Welcome to asciinema!")
+              |> redirect(to: (if user.username, do: AsciinemaWeb.Router.Helpers.user_path(conn, :show, user.id), else: ~p"/username/new"))
+            {:error, %Ecto.Changeset{} = changeset} ->
+              render(conn, "new.html", changeset: changeset)
+          end
+      end
+    else
+      conn
+      |> put_flash(:error, "Public sign up is disabled.")
+      |> redirect(to: ~p"/login/new")
     end
   end
 

@@ -2,31 +2,35 @@
   <div class="row">
     <div class="col-md-12">
       <h1>Sign up</h1>
-      <.form :let={f} for={@changeset} action={~p"/users"} method="post" class="simple_form" as={:user}>
-        <div class="form-group">
-          <.label for={f[:email]}>Email</.label>
-          <.input field={f[:email]} type="email" class="form-control" placeholder="Email address" />
-          <.error field={f[:email]} />
-        </div>
-        <div class="form-group">
-          <.label for={f[:username]}>Username</.label>
-          <.input field={f[:username]} class="form-control" placeholder="Username" />
-          <.error field={f[:username]} />
-        </div>
-        <div class="form-group">
-          <.label for={f[:password]}>Password</.label>
-          <.input field={f[:password]} type="password" class="form-control" placeholder="Password" />
-          <.error field={f[:password]} />
-        </div>
-        <div class="form-group">
-          <.label for={f[:password_confirmation]}>Confirm Password</.label>
-          <.input field={f[:password_confirmation]} type="password" class="form-control" placeholder="Confirm password" />
-          <.error field={f[:password_confirmation]} />
-        </div>
-        <div class="form-group">
-          <button type="submit" class="btn btn-primary">Register</button>
-        </div>
-      </.form>
+      <%= if AsciinemaWeb.ApplicationView.sign_up_enabled?() do %>
+        <.form :let={f} for={@changeset} action={~p"/users"} method="post" class="simple_form" as={:user}>
+          <div class="form-group">
+            <.label for={f[:email]}>Email</.label>
+            <.input field={f[:email]} type="email" class="form-control" placeholder="Email address" />
+            <.error field={f[:email]} />
+          </div>
+          <div class="form-group">
+            <.label for={f[:username]}>Username</.label>
+            <.input field={f[:username]} class="form-control" placeholder="Username" />
+            <.error field={f[:username]} />
+          </div>
+          <div class="form-group">
+            <.label for={f[:password]}>Password</.label>
+            <.input field={f[:password]} type="password" class="form-control" placeholder="Password" />
+            <.error field={f[:password]} />
+          </div>
+          <div class="form-group">
+            <.label for={f[:password_confirmation]}>Confirm Password</.label>
+            <.input field={f[:password_confirmation]} type="password" class="form-control" placeholder="Confirm password" />
+            <.error field={f[:password_confirmation]} />
+          </div>
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">Register</button>
+          </div>
+        </.form>
+      <% else %>
+        <div class="alert alert-warning mt-4">Public sign up on this site hasn't been enabled. Try contacting the administrator.</div>
+      <% end %>
     </div>
   </div>
 </div>

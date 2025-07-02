@@ -22,6 +22,18 @@
     <.error field={f[:name]} />
   </p>
 
+  <p>
+    <.label for={f[:password]}>Password</.label>
+    <.input field={f[:password]} type="password" />
+    <.error field={f[:password]} />
+  </p>
+
+  <p>
+    <.label for={f[:password_confirmation]}>Confirm Password</.label>
+    <.input field={f[:password_confirmation]} type="password" />
+    <.error field={f[:password_confirmation]} />
+  </p>
+
   <br />
 
   <h3>Streaming</h3>
